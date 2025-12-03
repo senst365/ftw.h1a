@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>詞語尋寶趣：翰林一上</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Swiper CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+    <!-- Google Fonts: Klee One (類芫荽體) & Noto Sans TC -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+        :root {
+            --word-color: #ffffff;
+            --word-opacity: 1.0;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #FFFBEB; 
+            background-image: radial-gradient(#FDE68A 2px, transparent 2px);
+            background-size: 30px 30px;
+            color: #1F2937;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            touch-action: manipulation;
+            overscroll-behavior: none;
+        }
+
+        /* --- 視圖切換控制 --- */
+        #cover-view, #menu-view, #game-view { display: none; }
+        #cover-view { display: flex; }
+
+        /* --- 封面選單樣式 --- */
+        .course-card {
+            background: white;
+            border-radius: 1.5rem;
+            border: 4px solid #fff;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 0 0 2px #E5E7EB;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .course-card:not(.locked):hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 4px #3B82F6;
+            border-color: #EFF6FF;
+        }
+        .course-card:active { transform: scale(0.98); }
+        
+        .course-card.locked {
+            opacity: 0.8;
+            cursor: not-allowed;
+            background-color: #F9FAFB;
+        }
+        .course-card.locked .course-content {
+            opacity: 0.5;
+            filter: grayscale(1);
+        }
+        
+        .construction-badge {
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background-color: #EF4444;
+            color: white;
+            padding: 5px 30px;
+            transform: rotate(45deg);
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        /* 版本標籤：右下角 */
+        .corner-label {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(135deg, #2563EB, #1D4ED8);
+            color: white;
+            padding: 8px 16px;
+            border-top-left-radius: 20px;
+            font-weight: 700;
+            font-size: 1rem;
+            box-shadow: -2px -2px 10px rgba(0,0,0,0.1);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+        .course-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.25rem;
+        }
+        
+        .vocab-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+        }
+        .vocab-tag {
+            background: #F3F4F6;
+            color: #4B5563;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        /* --- 遊戲佈局 --- */
+        #game-content-wrapper {
+            width: min(calc(100vh - 140px), 95vw);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 auto;
+            gap: 8px;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: #fff;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border-radius: 1.5rem;
+            border: 6px solid #fff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 0 0 4px #FCD34D; 
+            touch-action: none;
+        }
+
+        .word-target {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            color: var(--word-color); 
+            opacity: var(--word-opacity);
+            font-family: 'Klee One', 'Noto Sans TC', sans-serif;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            white-space: nowrap;
+            min-width: 44px; 
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent; 
+            z-index: 30;
+        }
+
+        /* 陰影樣式優化 */
+        #game-container.style-simple .word-target {
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7), 0 0 1px rgba(0,0,0,0.3);
+        }
+
+        #game-container.style-outline .word-target {
+            text-shadow: 1.5px 1.5px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        #game-container.style-outline .word-target[data-is-dark="true"] {
+             text-shadow: 1.5px 1.5px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+        }
+
+        /* 移除點擊縮小的效果，改為直接觸發 */
+        /* .word-target:active { transform: translate(-50%, -50%) scale(0.9); } */
+
+        .found {
+            color: #F59E0B !important;
+            text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff !important;
+            opacity: 1 !important;
+            pointer-events: none;
+            z-index: 40;
+            transition: none !important; /* 強制移除過渡，立即變色 */
+            animation: bounce 0.5s;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); }
+            50% { transform: translate(-50%, -50%) scale(1.8) rotate(-10deg); }
+        }
+
+        /* --- Swiper --- */
+        #menu-view { flex-grow: 1; flex-direction: column; justify-content: center; padding: 10px 0; }
+        .swiper { width: 100%; padding-top: 10px; padding-bottom: 30px; }
+        .swiper-slide {
+            background-position: center; background-size: cover;
+            width: 280px; height: 280px;
+            border-radius: 20px; overflow: hidden;
+            border: 6px solid #fff;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            cursor: pointer; position: relative;
+        }
+        @media (min-width: 768px) { .swiper-slide { width: 450px; height: 340px; } }
+        .swiper-slide-active { border-color: #3b82f6; transform: scale(1.02); }
+        .slide-content {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 20px; text-align: center; pointer-events: none; 
+        }
+        .swiper-thumbs .swiper-slide { width: 25%; height: 100%; opacity: 0.6; border: 4px solid transparent; }
+        .swiper-thumbs .swiper-slide-thumb-active { opacity: 1; border-color: #F59E0B; }
+
+        .settings-btn {
+            position: fixed; top: 1rem; right: 1rem; z-index: 100;
+            background: #fff; padding: 0.6rem; border-radius: 50%;
+            cursor: pointer; border: 2px solid #E5E7EB; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        .settings-btn:hover { transform: rotate(90deg) scale(1.1); }
+
+        .modal-animate { animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes modalPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .app-footer { width: 100%; text-align: center; color: #6B7280; font-size: 0.75rem; padding: 10px 0; margin-top: auto; }
+        .app-footer a { transition: color 0.2s; }
+        .app-footer a:hover { text-decoration: underline; }
+        
+        .color-option {
+            width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+            border: 2px solid #E5E7EB; position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .color-option:hover { transform: scale(1.1); }
+        .color-option.selected { border-color: #3B82F6; box-shadow: 0 0 0 3px #93C5FD; transform: scale(1.1); z-index: 10; }
+        
+        .color-option.custom {
+            background: #F3F4F6; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+        }
+
+        .cover-title-pop { color: #2563EB; -webkit-text-stroke: 3px white; paint-order: stroke fill; }
+    </style>
+</head>
+<body>
+
+    <!-- 封面版本標籤 -->
+    <div class="corner-label" id="version-label">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        翰林 一上
+    </div>
+
+    <!-- 設定按鈕 -->
+    <button onclick="openSettings()" class="settings-btn" title="設定與選項">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+    </button>
+
+    <!-- VIEW 0: 封面選單 -->
+    <div id="cover-view" class="w-full flex-grow flex flex-col items-center justify-center py-6 px-4 overflow-y-auto">
+        <div class="text-center mb-8 modal-animate mt-12">
+            <h1 class="text-5xl md:text-8xl font-black mb-4 tracking-wider cover-title-pop" style="text-shadow: 4px 4px 0px rgba(37, 99, 235, 0.2);">
+                詞語尋寶趣
+            </h1>
+            <p class="text-lg md:text-xl text-gray-500 font-bold bg-white/70 inline-block px-6 py-2 rounded-full shadow-sm mt-2">
+                請選擇一個課程開始冒險！
+            </p>
+        </div>
+
+        <div id="course-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full max-w-7xl px-4 pb-10">
+            <!-- 課程卡片將由 JS 自動生成 -->
+        </div>
+    </div>
+
+    <!-- VIEW 1: 課程主選單 -->
+    <div id="menu-view">
+        <header class="text-center mb-2 px-4 pt-4 relative max-w-6xl mx-auto w-full">
+            <button onclick="backToCover()" class="absolute left-4 top-4 bg-white border-2 border-gray-200 rounded-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-600 font-bold transition text-sm active:scale-95 shadow-sm">
+                <span>↩ 回首頁</span>
+            </button>
+            <div id="course-title-badge" class="inline-block bg-white text-blue-600 border-2 border-blue-200 text-sm font-bold px-4 py-1.5 rounded-full mb-2 shadow-sm cursor-default mt-12 md:mt-0"></div>
+            <h1 class="text-3xl md:text-5xl font-black text-blue-600 mb-2 tracking-wider">詞語尋寶趣</h1>
+        </header>
+
+        <div class="swiper swiper-main w-full grow">
+            <div class="swiper-wrapper" id="swiper-wrapper-main"></div>
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+        </div>
+
+        <div class="swiper swiper-thumbs w-full max-w-4xl mx-auto mt-2 mb-4 px-4 h-24">
+            <div class="swiper-wrapper" id="swiper-wrapper-thumbs"></div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: 遊戲畫面 -->
+    <div id="game-view" class="flex-grow w-full flex flex-col items-center py-2 px-2">
+        <div class="w-full max-w-6xl flex justify-between items-center mb-1 gap-2 p-1 pr-14">
+            <button onclick="backToMenu()" class="bg-white border-2 border-gray-200 rounded-full px-4 py-2 flex items-center gap-1 text-blue-600 hover:bg-blue-50 transition active:scale-95 shadow-sm font-bold">
+                <span>↩ 選單</span>
+            </button>
+            <div class="flex gap-2 flex-shrink-0">
+                <div class="bg-white border-2 border-gray-200 rounded-full px-4 py-2 flex items-center font-mono text-lg font-bold text-gray-700 shadow-sm">
+                    <span id="timer-display">00:00</span>
+                </div>
+                <div class="bg-white border-2 border-gray-200 rounded-full px-4 py-2 flex items-center shadow-sm">
+                    <span id="score" class="text-xl font-black text-orange-500">0</span>
+                    <span class="text-gray-400 text-sm font-bold ml-1">/ <span id="total-targets-display">10</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-content-wrapper">
+            <div class="w-full text-center bg-white/80 px-6 py-2 rounded-full border border-white shadow-sm backdrop-blur-sm z-20">
+                <p class="text-gray-600 text-lg md:text-xl font-bold">找出所有的「<span id="current-target-word" class="text-blue-600 font-black text-2xl md:text-3xl mx-1"></span>」</p>
+            </div>
+            <div id="game-container" class="style-simple">
+                <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-white/90 z-10 rounded-3xl transition-opacity">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mb-2"></div>
+                    <p class="text-blue-500 font-bold">圖片載入中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 勝利視窗 -->
+    <div id="win-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex justify-center items-center px-4 backdrop-blur-sm">
+        <div class="bg-white border-4 border-yellow-400 w-full max-w-sm rounded-3xl p-8 text-center shadow-2xl modal-animate relative overflow-hidden">
+            <div class="text-7xl mb-4">🏆</div>
+            <h2 class="text-3xl font-black text-gray-800 mb-2">挑戰成功！</h2>
+            <p class="text-gray-500 mb-4">完成 <span id="win-lesson-name" class="text-blue-600 font-bold"></span></p>
+            <div class="bg-green-50 rounded-xl p-3 mb-6 border border-green-200">
+                <p class="text-green-600 text-sm font-bold">耗時</p>
+                <p id="win-time" class="text-3xl font-mono font-black text-green-600">00:00</p>
+                <p id="win-feedback" class="text-lg font-bold text-orange-500 mt-2 border-t border-green-200 pt-2"></p>
+            </div>
+            <button id="next-level-btn" onclick="nextLesson()" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold py-4 rounded-xl shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 transition mb-3">下一關 ➜</button>
+            <button onclick="closeModalAndReset()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-3 rounded-xl transition">再玩一次</button>
+        </div>
+    </div>
+
+    <!-- 總成績視窗 -->
+    <div id="summary-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex justify-center items-center px-4 backdrop-blur-sm">
+        <div class="bg-white border-4 border-purple-400 w-full max-w-md rounded-3xl p-8 text-center shadow-2xl modal-animate relative overflow-hidden">
+            <div class="text-7xl mb-4 animate-bounce">🎉</div>
+            <h2 class="text-3xl font-black text-purple-700 mb-2">課程全部完成！</h2>
+            <p class="text-gray-500 mb-4 font-bold">真是太厲害了！</p>
+            
+            <div class="bg-purple-50 rounded-xl p-4 mb-6 border border-purple-200">
+                <div class="flex justify-center items-baseline gap-2 mb-2">
+                    <span class="text-gray-600 font-bold">總共耗時</span>
+                    <span id="summary-total-time" class="text-4xl font-mono font-black text-purple-600">00:00</span>
+                </div>
+                <p id="summary-feedback" class="text-xl font-bold text-orange-500 border-t border-purple-200 pt-3 mt-2"></p>
+            </div>
+
+            <button onclick="backToMenu()" class="w-full bg-purple-500 hover:bg-purple-600 text-white text-xl font-bold py-4 rounded-xl shadow-lg border-b-4 border-purple-700 active:border-b-0 active:translate-y-1 transition mb-3">
+                ↩ 回到選單
+            </button>
+        </div>
+    </div>
+
+    <!-- 設定視窗 -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center px-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl modal-animate flex flex-col text-gray-800 border-4 border-white max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-black text-gray-800">⚙️ 設定選項</h2>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full p-1">✕</button>
+            </div>
+            
+            <div class="space-y-5 overflow-y-auto px-1 pb-4">
+                <!-- 文字樣式 -->
+                <div>
+                    <label class="font-bold text-gray-600 block mb-2">文字風格 (Style)</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="style-option relative cursor-pointer block w-full h-full">
+                            <input type="radio" name="textStyle" value="simple" class="hidden" onchange="previewTextStyle('simple')">
+                            <div class="border-2 border-gray-200 rounded-xl p-3 text-center hover:bg-blue-50 transition">
+                                <div class="text-2xl font-black mb-1 text-white" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.7);">字</div>
+                                <span class="text-sm font-bold text-gray-600">微陰影 (推薦)</span>
+                            </div>
+                        </label>
+                        <label class="style-option relative cursor-pointer block w-full h-full">
+                            <input type="radio" name="textStyle" value="outline" class="hidden" onchange="previewTextStyle('outline')">
+                            <div class="border-2 border-gray-200 rounded-xl p-3 text-center hover:bg-blue-50 transition">
+                                <div class="text-2xl font-black mb-1 text-white" style="text-shadow: 1.5px 1.5px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000;">字</div>
+                                <span class="text-sm font-bold text-gray-600">描邊</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 文字顏色 -->
+                <div>
+                    <label class="font-bold text-gray-600 block mb-2">文字顏色 (Color)</label>
+                    <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                        <div class="grid grid-cols-6 gap-2 place-items-center mb-2">
+                            <!-- 第一排：基本色 -->
+                            <div class="color-option bg-white" data-color="#ffffff" onclick="selectColor(this)" title="白色"></div>
+                            <div class="color-option bg-black" data-color="#000000" onclick="selectColor(this)" title="黑色"></div>
+                            <div class="color-option bg-red-500" data-color="#EF4444" onclick="selectColor(this)" title="紅色"></div>
+                            <div class="color-option bg-orange-500" data-color="#F97316" onclick="selectColor(this)" title="橘色"></div>
+                            <div class="color-option bg-yellow-400" data-color="#FBBF24" onclick="selectColor(this)" title="黃色"></div>
+                            <div class="color-option bg-green-500" data-color="#22C55E" onclick="selectColor(this)" title="綠色"></div>
+                            
+                            <!-- 第二排：進階色 -->
+                            <div class="color-option bg-blue-500" data-color="#3B82F6" onclick="selectColor(this)" title="藍色"></div>
+                            <div class="color-option bg-purple-500" data-color="#A855F7" onclick="selectColor(this)" title="紫色"></div>
+                            <div class="color-option bg-pink-500" data-color="#EC4899" onclick="selectColor(this)" title="粉色"></div>
+                            <div class="color-option bg-gray-600" data-color="#4B5563" onclick="selectColor(this)" title="灰色"></div>
+                            
+                            <!-- 特殊選項 (移除隨機選項) -->
+                            <div class="color-option custom col-span-2 w-full" style="width: 100%; border-radius: 9999px;" onclick="document.getElementById('custom-color-input').click()" title="自訂顏色">
+                                <span class="text-xs font-bold text-gray-500">自訂 🎨</span>
+                                <input type="color" id="custom-color-input" class="absolute opacity-0 w-0 h-0" oninput="handleCustomColor(this)">
+                            </div>
+                        </div>
+                        <div id="color-name-display" class="text-center text-xs text-gray-500 font-bold h-4">白色</div>
+                    </div>
+                </div>
+
+                <!-- 文字透明度 -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-gray-600">文字透明度 (Opacity)</label>
+                        <span id="opacity-value" class="text-blue-600 font-mono text-sm font-bold">100%</span>
+                    </div>
+                    <input type="range" id="opacity-range" min="0.2" max="1.0" step="0.1" value="1.0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1 font-bold">
+                        <span>隱形</span>
+                        <span>清楚</span>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- 語速與語音 -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-gray-600">語速 (Speed)</label>
+                        <span id="rate-value" class="text-blue-600 font-mono text-sm font-bold">1.0</span>
+                    </div>
+                    <input type="range" id="rate-range" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                </div>
+                <div>
+                    <label class="font-bold text-gray-600 block mb-2">語音 (Voice)</label>
+                    <select id="voice-select" class="w-full p-2 border-2 border-gray-200 rounded-xl outline-none text-sm bg-gray-50"></select>
+                </div>
+                <button onclick="testVoice()" class="w-full py-2 border-2 border-blue-500 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition text-sm">🔊 試聽語音</button>
+            </div>
+            
+            <div class="flex justify-end gap-3 pt-2 border-t mt-auto">
+                <button onclick="closeSettings()" class="px-5 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">取消</button>
+                <button onclick="saveSettings()" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold shadow-md active:scale-95 transition">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="app-footer">由 <a href="https://www.facebook.com/se365" target="_blank" class="text-blue-500 hover:text-blue-700 font-bold">特工365</a> 製作</footer>
+
+    <!-- Swiper JS -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+    <script>
+        // ==========================================
+        //  課程資料庫：翰林 一年級上學期
+        // ==========================================
+        
+        const getPlaceholderImg = (text, color = "3B82F6") => `https://placehold.co/600x600/${color}/FFFFFF?text=${encodeURIComponent(text)}`;
+
+        // 更新為翰林 一上 課程內容
+        const hanlinCourses = [
+            { 
+                id: 1, 
+                title: "第一課 一起走", 
+                customData: [
+                    { word: "走", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXd-qUDwU92gX0Q7nnTzC3qta642LSXpKv-JZu5GgFj8op3bxXnvkJ5FPBvoPcLqTL2MA7g4f8odayIWRpSVZLaQSlg_zi7Z52iNzgh1XQTHmgo5klgIzv0jBWVVbvb-1oQ?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "你", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXe4j1e5wwIuHcvwBygtsUuj3CX2VlSoWGPYGLoguPRSwuzyf86b-AtQNFZV98qm28zta_2SrinbaZtYEY1L4C4ktiVcPcHw6vu-8NGqN1CkVhuU3Og9vN7aUrCQnRtxk7k?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "在", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXcTzkW44_2SD7hHmHXqElkPaKl_z-zuejAnv8TOq2BPEgx3Y7wz8o-Rrbfiu9GYgfX3P6EN0Dkv6I-BNGjOOGn5c2_FegL_ShFXsvC9Nv7qx3x-leAXKJAEqeeJxPcdqg?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "左", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfZj-mtMwtEr9gPAQ7rIv2Q0R82RbhT4O09Ntpovu3CCv8N4m2DQ-zX4X-yzxuPKdD8mUIFyn3JtZ3ZUyGmbnaoxGRDA-MDCdDNHxKak3xtuQsQS7KSiVw5ql9UIckOng?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "我", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXemFLvopPlVVoD2H-nPFYJ4iIsXnJLMtLtOtc8h14gSGwIMNt95jQPBC3MkYGw6MBVL33X_-MfMOrmzdbypq1qDtZFVwFrhfkDEemMmEtxIE7dXM2AptJZal0zvTM_-c-k?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "右", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfi4PkOHd0mmK1jK4L2nwkmROBXT_zBvrTZeBK04ahl84-Q27GMN2AxQeABVoyO_XC5SODemsqeW6BeVgcLme6tpb_SZkPOqk8kGIrcAkPfBU7V6Lw5oVyuNASmjFHoh4Q?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "你和我", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXe_bpFLkTDFQ1Jk9ZZbOWcmlRCro4meRRJPjiHcn0aFNRfQxYv--oJ6jk7DyWFhlJU2X_0mMx9YWwAnS_g2PclALrGlnn18kOvjE9Dv9IYAMs26pEWSIUDaToW4kQTDfw?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "向", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfe7TkPbU7dlqrZY0vQ8c40tSNRWCi9xgmzBat2H4P1tfL9VHuen7_wnV7YYa9LnUYmTBPssMMoWo9ZO8FEkVwrvajzjc69dE7fRBImcCqSk6ufZie1NPTFQPfbgEbJhIs?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "一起", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXc4cZUQrrEiBgW3b4zZdudpRbSH9nsTj_NA3z63lXYbaICygeJr1IfPtlL8otLhNTWrsGcMyxXji62PlWPhPYBZllkzVF8MG84yWLfsTjoB3XLF1yWcbLAnMFtEL97f-hY?key=oFjBYdC8r8WK9wqHhZltwQ" },
+                    { word: "前", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXf40eRLkueOL0gFGRkX8PEuvJ9UcTfxLAcYClG-vMoXKgW7tIsl4w_VkM51QCRRoDfd2NuQUnXAShiPgNxAJHibq6U2MU5BuCXKIDz01wGqQcU5IE5Vrw3sjVHN-M2EXQ?key=oFjBYdC8r8WK9wqHhZltwQ" }
+                ]
+            },
+            { 
+                id: 2, 
+                title: "第二課 大風吹", 
+                customData: [
+                    { word: "大風吹", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXf7ZUfL4fRq0YD7LzjPj9JynxzXQDcJ9BzW_e1BRS19BXvdfo7ZEwhRLiXNvQil6yQZTy_nmXbT18fMRAazDkquYINhLgN6jf0DHKK2igRYNow2e2GhzXhmL1oTAzBBuN8?key=wED5zl6dHfViZau-LMOJoQ" },
+                    { word: "我們", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeCibXHSE_V9jZ_5KiSx9zZV5q9dlbnS1NikMEZ8bm2519xMrtz9dpvJR7Nj2U_ooEZzKf9DNommJHrccb2Ja3_fkwzz3N3zALpgY-riB7fNB0URPNLPaEMHVyEWB_-yPk?key=wED5zl6dHfViZau-LMOJoQ" },
+                    { word: "來", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXecj51xBaymasYqTv-Wfn97aDjfQG7fvDVn1pKuHUucIFd-8tX5RnUVlwC_tHQ0JpNU7Pxa-HaI90R0r0dQbbi1AbPmT95Cm9cIwfgIpapcdd91Usnltje_Abs0GbeeEgE?key=wED5zl6dHfViZau-LMOJoQ" },
+                    { word: "玩", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXffyU3o5coA4ljMWrB9AxfRBDB-_QpdjLd46KrEXP0Am2OxK5dEl6vuycpkWUcJowji6AsCh5VC4raTntXSyNXU946nIN-J0jnLPxHkjVHzbJG_3SZDWihQeQaS9m7vGgc?key=wED5zl6dHfViZau-LMOJoQ" },
+                    { word: "不停", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXc5DceE9B-YaXqI49cx_vqXByqII3FYeqBcYrKvPikp_n2XxUIqm7ky7UP52n1aMVP5d8VeOelmUof5kmAxGbYPY462CsDeno5rAilx5MkmVvhIgqDIyaB3UNyKFBE6TNA?key=wED5zl6dHfViZau-LMOJoQ" },
+                    { word: "的", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfbKql1pZXCNHarUl6H6CpZ3RTyRugzQQQOAsqncr44GieoUoLI93BYb75ilcqcfXK4AZ5zxBKbqVhhp2kxSfVEDHBuHf55OH9gN2o6sa349fJBtlD1_87FAaCqdP0junk?key=wED5zl6dHfViZau-LMOJoQ" },
+                    { word: "跑", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfiEp6brssusHKZil8cepR7v7l8_XeMNDN-_lypv7hif1bXQRtx4imxmbE9jivl8CDGJF5PfcQ-8lhmvfipGriMtw6FozLk1KkrXSCfRWGwieVnkwpxDajsPGj_R0BRWxE?key=wED5zl6dHfViZau-LMOJoQ" }
+                ]
+            },
+            { 
+                id: 3, 
+                title: "第三課 火車過山洞", 
+                customData: [
+                    { word: "火車", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXerjmxZhH7Gk-OloD0o7b7JRMCXWEadn_fdyS83aZ9QloEhK4QiyzgWkj-h8UOHti7l8CtZQ0eu_nFAK9dXWLBQ2oG_GrADPyvPmn1o5pfzNwARwAcf0olQoEc2hTqlgw?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "過", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeov2ZQIxsiAjzceKOCN0szfu5Bt2Klchz_aU2yvI98dUILDwFRCQVoNoRrFYW2CmmOIvzZWLAimzxISdhZVGkYTrOh6uZ2ieGfEl6hYI6RrGxlHUCDem227_CfJwF95sA?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "山洞", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdKFxnV_wGXvMsRlyhwJkjQxgnqdU2HViU8AFR6DCA2vNcJcU6kM65SaeVLV9a7GHo1hhetMmON-KYBkERPGs3oIMSlRmmam1v_tQfxwgtQ_XM5n781lD1tRLRtgsJs8g?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "一個", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdtTbwDbt2IOsYQ3F7vVzww38QmQ_5JID5BnCuJW2UEnO877rpVLKQtpeoKiwX4KcsAQ18CzvyiTMhjDsC1IXxiS5RtqkBA0ZkOkDIsDKeLQNBSda_aItPqOe0E2mrDBV0?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "又", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdrZMG1geRKmp7_sQlDDIB8hzyAZWbzCcwXw64F7neiKMZJ4qRZ4eEtqkH5fWWNPKnW372LuogDFQiRwZu1FjC9L0mjgKAd5pGy1VuUG1foaV6jBFlQ2GLY88p9pxMG1A?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "做", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXf-3H20GC46HaXpiH3Sz-lsjqwpWs91scDwQ3Dm_Ao26trtSsfksve3F-bgXnQSLw9r6SKuo6_rErEHcasuaNLvcH1JIAe71TLqQA09qdc3VboljMp-HAruQiFCZ2SxMCc?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "出", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXejxRs-Ce_jUQ-TTcyVenswMHDS_4GTRTNwQrx2rocmh9kirSRd8GsKUhzZK_kTwBfuxFlXUSgKhuUDoMDmxgnJsKENDwL_bXHnRouVa8FAJt0H-mF9BLca4UL3FKnyba8?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "小", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfsXyzhwCTXf83FMonKWe1NqKzGLlTClWhpJuDLrHEYk_M8VD26NbGX2d1RxhkQNz_M2w9tYgmgjB9D458oBSTmADbFm_dMDC7CTpUCLtuW_uEvGZ6X8fbMK4HZ7ZsQyT8?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "堆", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfrqpKZ118h-vbiIsR1CSTfVdQ06rjtTLLx9FxMuUVAo2Crxtba89e-3NeKWy_OaOZ04dwfdN6jvsVBUr4nO0Hv4Ei4QaA09BfN4ov2a6L2gSIuJ7C_z6yUxvN2nTTBvng?key=craFRNFvuhA9mdIi9YA4YA" },
+                    { word: "開開心心", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXccr8bAU1oxxKa-IRAvEdvjMtvWmGs2opV1FVNf96oLGnFkEhrq1ifxzhLYCUD_lgLbwA_VfAbLGQLegXi35LVezpNQzZRhhzL-zKfwdIFr74FrHoCOwhenWXqA3ltDGA?key=craFRNFvuhA9mdIi9YA4YA" }
+                ]
+            },
+            { 
+                id: 4, 
+                title: "第四課 請問", 
+                customData: [
+                    { word: "請問", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdhfUl1IwYSbuJZ3srTHOeo42b-vWJl6wMbOxFB2ipjXtc5jftQSjBhWSNQMznYoimGz-WHRTMldIYLsI1dM3BsBR8L4Atzu-FeUjKNtbnyCYYb9VGKDuWqgX3981Phnoo?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "小草", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXehkHr5V3FzWPWO4lPgzVj5jQ1IUtmBVXCozJf4Ejc2l6ge9X4JY2veUba62PjJt4WwI9DEDs6WeCWK1sotq2M_qNwI-m3g7zYu_utDcQW8DEDZmvU5zaz0-s55MYiT2EU?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "天", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfw77bgY5WzICuzTiSEkLswZf0qB6nEDD010tajd8GZbSPwFplpm3Ah2-NqKzO3Qd71q9lXWPLmpzhL9L5El1FAYu9dEjcQOJMS-3P2V0NBUfPj-scKh5spbHFGfcDuEP8?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "去", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXe6LTZ8ZHxQJtbKNZeTk9fuU9--zuRMeOx5BNUTT98hEjSXH2r1lgyOnLggpiAOh1b1pGU7sLzYOIX8jH9mDINcPH61L4hocLafU45QXpeUasrV7EYLrQxyJS5YYyqvGg?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "哪", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXe6aqg4gjmtTsvnf5JXnl0MBgUGZYjWHaHez-7W3lvgVC0g-5mC8bP0b6vIucHK4f0JjGd9Q26nTFffRAVyztVmV-u8BO2JfWzOY53t8qBbyxt7lAVmRH5mSmtQ2T6g-wQ?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "水珠", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXePlU2MZmqb59XepvLTxY-iMqwn112uQ0qlUZkYuYDUowzYPLaLZAWvX4a6X4inx-dHHPjbf0GokIzqeTlYhsw4mQExoZT4Imdr0fnHQO0HhAraGd7ybLg5XNw8R4chMPg?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "了", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfOUz1IGzCmwnuHM3ci8mfjBZ-bcD_kRnwPfIySo8bujo4yrQ0Y115RKCPQk7GAUn_z6A92iwtYWiFDQNDtsVV-1XSMv-1t6IJDEeqRl6ljxOM1r-5CxpXI83kdZ8Ju6XI?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "太陽", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeTp7dLpf3MzD45Fk4699XqDA2yqrqth1MYFsm-FU4YBC-jsufsuaB5HtVceQnv9VXnnVH-7zOBjSsHZWX3Zz2JeuygOGP8B4Jx-e6_oMs0-FmeTPeMTzcAY4RZR1ibgPw?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "多少", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeSXsSwJ5A_3N0mIFOe-xqGdOUm_RJO1oelTI9CDahqjq1rkDUA9KDESPPecsQFO133YrL5XPOf4QJ8cN1qtxkiDOGjfWdJdtVtq1tkd8NNdpafY2kXZxV5tzm5YGUi-w?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "星星", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdAeB3id2I4gpxMac_BYyvRqyyMHMgaZjJ-lzvGhR75eNYtLzF7Ry6DSEyb0DfX4ThU8dW2UZPHSTJDH8L65BZGQ-ov5UVBEQ7FBNtpiKO_WJYlfX6ScNeXyNJNi0azpQ?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "高", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXcuPzXnDPMz0fT3P9HBnhMM-GWYxbRj443VyG3f1Fax-KZ2AT96Y-mhR3OPSmQbENmeBFJC-F6v_8MWMPQWzI9uhgDO7RMwqpzeLUXX8vbw_Sdz0ZhHdHhxV7OGdWwzmA?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "多", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfksgEXZOPtg3YOiJDpl2XI4EqMmpedTCSouKmQfkuL5Of9Fuo_4ROgyAr1oIBRv2gz5C2ZGjkRyoEajMh_czpAaTIW-PMZXEMOhpjVSOaRrVDJtFW90QGkTpVp8wMVY3U?key=N6UfcP8HnJRLf4K8zuJV-w" },
+                    { word: "有", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXcmiNTuPrr5SCfi3PH1VrMdIv9mtsHwtMO1YjtguYVYusNIBv9OZF_fAybd8q2kmDz5nv1yI6ZLN7fVKYJPGXcj_-HPVpv0AoL_K60Caw089vJ7nqRJE-DTYRKKIm-jfvg?key=N6UfcP8HnJRLf4K8zuJV-w" }
+                ]
+            },
+            { 
+                id: 5, 
+                title: "第五課 七彩的滑梯", 
+                customData: [
+                    { word: "七彩", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdTganZsG5v5XCI-Tx_9WzY38vPcKV-qDbOCvogfwHdJoHYHeeO3mTS9Z3TRal7m9zRX7PZRLcWFwWpPlG9ArHwHZK3JwSETOo8i9iYqLQapVMJZWXCf_gHtTdP75FckD4?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "滑梯", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeFI2mxI8OuzdpG8HjIiZIOoQ3XiKT3CDZZST1jCl_RyoXlXHwFgZR1Y_ISdes7C3fZEEdUd6m3dt2aQEC5NNUWj12T_gD3peBD8H57K96yVvbHaR9yOxphkxzX31kwb_4?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "天上", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXf5PiUz28-312WTfIjnBF98gKZNGX2SmlIIV7x2h_1Pfdbc0HWhpwIoDehXWX29nBx9I4MrLLyeBOE5_yoGFH_KU2l-XjwnmxLGhzrWUf5GtSYHvfAuE22h67eF1v6Q9aY?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "好想", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdoPdOJZAb0i2x8oLytKQ0m1307dUty0sXnRmMF6N5B5E0X0wA5ZvFnIzxwaX_q3UnC4_WG1Q4MhZlPHMvRf_5spRAk1oCWCLc-IduKRV3ay3yiAFVvVE6uhQ-jCna4-g4?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "爬", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXcy7eZzKRlWPEpspvvYd-JrFO8xne_8FGgwiv8emYIoTq27Jfks8mDYxy2Qz1gOdf1naI1LtzlarKKa58FMLPlQzUF8kBMufL4Du28Kw23hjdMhhJGBTj4saPmHsZiSDXo?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "看", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdrgSzI2nvxuI4TdFA4JWVatltTX7uFMfC8Sg_ljKuk7e6HV_kRcAcimU61Pgx9tYdVzfugfnN5rUYF8FKPJGghk41sEK2MFD00pBHMjjWx6W7U5B8fD1gn3EB0Zux_QvE?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "有沒有", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXet7R9Jv-wYAn6VNxraAL3T448WvxWhVO0ubnyYuCXQOSK-1sCVKMmzGnwSMSpYbegK4wIl4c-V8AqUfqy9LNe-29xttM8iW403wfM8rTQWwXQdb_TpSqfrQZzqDfpirsI?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "棉花糖", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeq4Z077w4qRhb570jqkTewwP6oVcNRVJcvrXeyPfvZ1UNuULDdutuqRqKFMFxUO0OoFRFV9vCV2-TrOmwwH-MNifRJXpSEMd2RnTXaISbYpTzPWDsCVmCdOwdWQaYexGA?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "下去", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXceN0F4_DJBjuEypVJJDc-9yEyXQY0o0Xrln8AOh_LRR2wNUXAsp7eg5D3DoyNEgDHQOa0AzQwT_ZrA0z_rTvCOYZ6pGCYDLI76fuz2n2SGd668ELLLPw7g-Mx_vrtYOms?key=79eiAL4ZNkJim2fynsOm6g" },
+                    { word: "泡泡池", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXd9trpubVmLP9R9rfgdV_rGU7FckUDQ7vz5e2mSFDknGo-WeVKYwkO2vpF7sW3T3SRwzPhul2QTCN4OdfegV5SaDTD9J3OlpdKfmBUMBvATg4VeBCmCGE3puIxnOpLtNx0?key=79eiAL4ZNkJim2fynsOm6g" }
+                ]
+            },
+            { 
+                id: 6, 
+                title: "第六課 秋千", 
+                customData: [
+                    { word: "秋千", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfRI0JZpeSrEobCzNlZg0JmJDT1IJ4l9_NSlcG2t5BdXlza_6UPBYz9WN4daeiDGHEpTge963OuNK9oA8sLKhf8NIEz0_L_GIG0K67mzYSuhDVtXkDigLsW7yBoUohweLI?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "一下子", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXedQFEMoDjlYzoB5UyB9UevINCAm2cFlDLkczrYVnwcxwme3aqM8E00eU65_VEyia-nYu5hmZzQtC8IrXNcJWZFV35ouvV-88U1YlzZS7q3IGkDt3ofIPsPy3tXxGFJzf8?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "天空", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXc0B-EFtJB5u8VKELqxdpmjBVEHV9eul779KQR6o1_qecZnd-9TohRcblPF37AHsnJdxvBb5AvlwWQiQYjCFAU3paIkl-bGzuKDTD0aOTbZUfbQCKShCZAHw8Sbr50eYhQ?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "說", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXd2zwkyP8GASxBA1oauNol6kPe7Lp3YQf6ijR2WHuz7AKbPGuQgWFGMcJoTRtiTeGKKFMA1jjGXbXcsrXHo12ghYUlrfmCsEW0gAuqTo6BDAs-NL2j-1d2XO3_XgvoPWb4?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "早", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXe1ZOOnGfeF66dis1fm0EGwmNFc126WUCxTn73q26R7uRTkYNY6c3sOXGbA-pRVRaXAi0ORNG21siw8cq79PVShHyYuWYWyYE_T810T0-DH9t1YbjgDjCnjtwsi2c80bfs?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "低", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfjJpClZguZxz_7AHjndz6yfk2acLMiqc57xc2gOL9MCGuRnQJ4ppKloeGNm6ib9iPQizY6AIo0Lb4eMjRiIT0aWtfGkNBVevt8xgywVeKkJQB1phUpHnIk57I85rClkxU?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "花田", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeAwjcaNEmWLb63bq_BZa8GTxt4IN69O6j3SVYyNkDUNA6JiSeUBH3ovoMb6gaKwIEPxeZJDcVW8IiADq7zYF7oD7h3UOOxJjjak7PYyi_w1qYpfTPm4uVQzCnz7NFAvDY?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "找", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXenE1sfl_Qi3YxIM4Z-1nAzS2Vbw_zvuuBwTeH8DGPO_KlHGurDz61yguAogltZXMXEGdG-BJmd5VJH_sdf2TordEuHyiOsFUtaSGhF3mAP8uw17dHndElV8nd08Inw7kw?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "是", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeCaf4SMtDElRDY8BnOQ4XkE8yMfQ9KntGj8PdetSfwSrZsoLefOR5nYyhU-E-PesTyrGRg-eUDn7pnebfdQDc0Mi96yysKLoIDi1txvLdxHUEopAJIQGZfvSCoZVmY0F8?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "誰", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXcAqBj8Q9I6aaxZbWyyGL20YsflTKP7UpFjiq-yMGc_nLw1Nxe98ntW_cahF1CGK2S7rsxNyADh3w4J6hr9QRP3Wa8eSwIduHddw8TZCchRvZ8bawwRPTK-l3sxfwW2BkA?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "陪", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXcpyzdpU6zjjIwrUrBbqJhW46cL0H_3I70FQ06zMHSynHRcZmtr94B4Q3ChzwxRna4tG6uzDrbnXd7iBvAB2N9dnKWpmquK-B9I22mT3lGQlYkLyArcOiS2d5n81k9LQQ?key=xFUDGuJNqjK-q9jdTpcGNA" },
+                    { word: "他", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXd2zwkyP8GASxBA1oauNol6kPe7Lp3YQf6ijR2WHuz7AKbPGuQgWFGMcJoTRtiTeGKKFMA1jjGXbXcsrXHo12ghYUlrfmCsEW0gAuqTo6BDAs-NL2j-1d2XO3_XgvoPWb4?key=xFUDGuJNqjK-q9jdTpcGNA" }
+                ]
+            },
+            { 
+                id: 7, 
+                title: "第七課 回音", 
+                customData: [
+                    { word: "回音", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfkIUV3t8_aWMH_xZERjyGVsSjRz8ZUMPk8KZzjeeatKj37ZANgXJK_fpviWbm5SJO4nPEmW0AyqSk6AJwaQhcQKN-3lavfYHEyXw8JSejuTVOxTc4zlBAPA_8B-5ElgJU?key=c5K1jNKKKUDq07E8kwLK4A" },
+                    { word: "來到", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXcsbsdCNEJUlZRqm-vGY8IORlNYm3yKHrgRy6W7eI74ipXayInFzY97Hv4lPI6N_q3OxpNV-WNX0Tx4rwGdx8Hwev4EU6CSwcC-P5kNNmgZcuc42pXhVNWakmVdNxpLng?key=c5K1jNKKKUDq07E8kwLK4A" },
+                    { word: "山谷", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfcYUpwlungJk0yB9GPhrzvc4Aj61mc7JIqbTmXxU57GL7RB7DbHGuliQdrwHHIs-o1yOR1M2FQ7XHORULk3FXhFNg4ZFiHm1JS81rxUMzIGtPrULVuWCJMmK1xtQXSWyA?key=c5K1jNKKKUDq07E8kwLK4A" },
+                    { word: "大叫", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfHOs7JBStAaEWMCHzQf6OaJ7WQ5gcpuZlq7GWicsTa9Hnc1ABZ54r8UPNXS3fSIbm9k-PUAv2QhBjQdnmgHISF3bcqq4-CzN8vTHUpfLjU9PqOiMnIkjO7CB7HaDCP-A?key=c5K1jNKKKUDq07E8kwLK4A" },
+                    { word: "人", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfxadoeu7nHQP5-OClCvE38FGNWFR7heXU_gNldpLs9hQOBS5HskAaHlLaXkCvB8Fklf_azQ895ffxHlYJYUHdCG6KAbYUzVYAt08CInqFqOZkYcNYcxPuab35AH6WRiJs?key=c5K1jNKKKUDq07E8kwLK4A" },
+                    { word: "嗎", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXdrZb8Gcs6bTvlfmea-HdcdsHIbWkiiqOQavZFHwKye44GD-5UjipxNwHI6GKvVdw76eoji3utsEGwKQZACnvgvnmkPYikKXRTdniRFwm9ZqgYwAcw_c2T0u9-j1h5q100?key=c5K1jNKKKUDq07E8kwLK4A" },
+                    { word: "也", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXfMCXsQmiKROxDz0OMCMYC7xn2Y2CDr6yciY6692j8gqKrWL4xMWMjlY9-xIxz8gYSw0Ss3eOVJTwlYTidUo9jjS7Luwo7kzHCpHe42RrUKvmAKFFYKhenbckw9X_ThAAM?key=c5K1jNKKKUDq07E8kwLK4A" },
+                    { word: "笑", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXeHvY_-1l0bCmJ1UwFcxaznxkNyif7tDRLqLQh9jo7Uk7HHzUR6EtYTjfdaPcASdn8B6e4BD-nqtePp-6B6cMOAk23EPhwJFSL4IDzfHIDPmz4C4yXA3-Zc7ikpEs7Q6xw?key=c5K1jNKKKUDq07E8kwLK4A" },
+                    { word: "哈哈大笑", imageUrl: "https://lh7-rt.googleusercontent.com/docsz/AD_4nXepIKNqDPdWx0w78FVeq-N_CHqX-flhX6A4sK_hLTS3tQeHy_LnZcPPbI8s9WsbU_mIrW9YowLdeeAHG2bfAsO37L97wsmjibe6niNsGsH8Dn1pXK895EtZhWZI1ltvGw?key=c5K1jNKKKUDq07E8kwLK4A" }
+                ]
+            }
+        ];
+
+        // 處理課程資料，加上顏色與圖片
+        const allCourses = {};
+        const colors = ["blue", "green", "yellow", "purple", "pink", "indigo", "red", "orange", "teal", "lime", "cyan", "rose"];
+        const colorCodes = ["3B82F6", "22C55E", "EAB308", "A855F7", "EC4899", "6366F1", "EF4444", "F97316", "14B8A6", "84CC16", "06B6D4", "F43F5E"];
+
+        hanlinCourses.forEach((c, idx) => {
+            const colorName = colors[idx % colors.length];
+            const colorHex = colorCodes[idx % colorCodes.length];
+            
+            let lessonData;
+            
+            if (c.customData) {
+                // 如果有自定義資料(含圖片網址)，直接使用
+                lessonData = c.customData.map(item => ({
+                    name: item.word,
+                    word: item.word,
+                    imageUrl: item.imageUrl
+                }));
+            } else if (c.words) {
+                // 否則自動生成佔位圖片
+                const titlePart = c.title.includes(' ') ? c.title.split(' ')[1] : c.title;
+                lessonData = c.words.map(w => ({
+                    name: w,
+                    word: w,
+                    imageUrl: getPlaceholderImg(titlePart + '-' + w, colorHex)
+                }));
+            } else {
+                lessonData = [];
+            }
+
+            allCourses[c.id] = {
+                id: c.id,
+                title: c.title,
+                isConstruction: c.isConstruction || false,
+                color: colorName,
+                data: lessonData
+            };
+        });
+
+        // 全域變數
+        let currentLessonData = []; 
+        let swiperMain, swiperThumbs;
+        let currentIndex = 0;
+        let foundCount = 0;
+        let TOTAL_TARGETS = 10;
+        let audioCtx;
+        
+        // 紀錄每關時間的物件
+        let lessonScores = {};
+
+        // 設定
+        let voiceRate = 1.0;
+        let selectedVoiceURI = ''; 
+        let textStyle = 'simple';
+        let wordColor = '#ffffff';
+        let wordOpacity = 1.0;
+        let voices = []; 
+        let timerInterval, secondsElapsed = 0;
+
+        window.onload = function() {
+            renderCourseList();
+            loadSettings();
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.onvoiceschanged = populateVoiceList;
+                populateVoiceList();
+            }
+        };
+
+        // 渲染封面課程列表
+        function renderCourseList() {
+            const list = document.getElementById('course-list');
+            list.innerHTML = '';
+            
+            Object.values(allCourses).forEach(course => {
+                const isLocked = course.isConstruction;
+                const card = document.createElement('div');
+                card.className = `course-card group ${isLocked ? 'locked' : ''}`;
+                card.onclick = () => isLocked ? alert('此單元施工中，敬請期待！') : enterCourse(course.id);
+                
+                const badgeHtml = isLocked ? `<div class="construction-badge">施工中</div>` : '';
+                const vocabPreview = (course.data && course.data.length > 0) ? course.data.map(d => `<span class="vocab-tag">${d.word}</span>`).slice(0, 8).join('') : '';
+
+                card.innerHTML = `
+                    ${badgeHtml}
+                    <div class="h-20 bg-${course.color}-100 flex items-center justify-center relative overflow-hidden">
+                        <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                        <span class="text-3xl opacity-20 font-black text-${course.color}-500 absolute right-4 bottom-1">${course.id}</span>
+                    </div>
+                    <div class="course-content">
+                        <h3 class="text-xl font-black text-gray-800 mb-2 leading-tight">${course.title}</h3>
+                        <div class="vocab-list">${vocabPreview}</div>
+                        <button class="mt-auto w-full bg-${course.color}-500 text-white font-bold py-3 rounded-lg group-hover:bg-${course.color}-600 transition">
+                            ${isLocked ? '尚未開放 🔒' : '開始挑戰 ➜'}
+                        </button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function enterCourse(courseId) {
+            initAudioContext();
+            if(allCourses[courseId]) {
+                const course = allCourses[courseId];
+                currentLessonData = course.data;
+                // 重置分數紀錄
+                lessonScores = {}; 
+
+                document.getElementById('course-title-badge').innerText = `📖 ${course.title}`;
+                initSwipers();
+                document.getElementById('cover-view').style.display = 'none';
+                document.getElementById('menu-view').style.display = 'flex';
+                setTimeout(() => { if(swiperMain) swiperMain.update(); if(swiperThumbs) swiperThumbs.update(); }, 100);
+            }
+        }
+
+        function initAudioContext() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function backToCover() {
+            document.getElementById('menu-view').style.display = 'none';
+            document.getElementById('game-view').style.display = 'none';
+            document.getElementById('cover-view').style.display = 'flex';
+            document.getElementById('summary-modal').classList.add('hidden');
+            stopTimer();
+        }
+
+        function initSwipers() {
+            const mainWrapper = document.getElementById('swiper-wrapper-main');
+            const thumbsWrapper = document.getElementById('swiper-wrapper-thumbs');
+            mainWrapper.innerHTML = ''; thumbsWrapper.innerHTML = '';
+
+            currentLessonData.forEach((lesson, index) => {
+                const slide = document.createElement('div');
+                slide.className = 'swiper-slide';
+                slide.style.backgroundImage = `url('${lesson.imageUrl}')`;
+                slide.innerHTML = `
+                    <div class="slide-content">
+                        <div class="inline-block bg-white text-blue-600 px-4 py-2 rounded-full text-2xl font-black shadow mb-2 border-2 border-blue-200">找：${lesson.word}</div>
+                        <div class="text-white font-bold animate-pulse drop-shadow-md">👆 點擊開始</div>
+                    </div>`;
+                slide.onclick = () => startGame(index);
+                mainWrapper.appendChild(slide);
+
+                const thumb = document.createElement('div');
+                thumb.className = 'swiper-slide';
+                thumb.style.backgroundImage = `url('${lesson.imageUrl}')`;
+                thumbsWrapper.appendChild(thumb);
+            });
+
+            if(swiperThumbs) swiperThumbs.destroy();
+            if(swiperMain) swiperMain.destroy();
+
+            swiperThumbs = new Swiper(".swiper-thumbs", { spaceBetween: 10, slidesPerView: 4, freeMode: true, watchSlidesProgress: true });
+            swiperMain = new Swiper(".swiper-main", {
+                effect: "coverflow", grabCursor: true, centeredSlides: true, slidesPerView: "auto",
+                coverflowEffect: { rotate: 50, stretch: 0, depth: 100, modifier: 1, slideShadows: false },
+                thumbs: { swiper: swiperThumbs },
+                navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" }
+            });
+        }
+
+        function startGame(index) {
+            currentIndex = index;
+            const lesson = currentLessonData[index];
+            document.getElementById('menu-view').style.display = 'none';
+            document.getElementById('game-view').style.display = 'flex';
+            document.getElementById('current-target-word').innerText = lesson.word;
+            
+            TOTAL_TARGETS = lesson.word === "施工中" ? 1 : 10;
+            document.getElementById('total-targets-display').innerText = TOTAL_TARGETS;
+
+            const container = document.getElementById('game-container');
+            const loading = document.getElementById('loading-overlay');
+            loading.style.opacity = '1'; loading.style.display = 'flex';
+
+            const img = new Image();
+            img.src = lesson.imageUrl;
+            img.onload = function() {
+                container.style.backgroundImage = `url('${lesson.imageUrl}')`;
+                setTimeout(() => { loading.style.opacity = '0'; setTimeout(() => loading.style.display = 'none', 300); }, 200);
+            };
+            resetGameBoard();
+        }
+
+        function backToMenu() {
+            stopTimer();
+            document.getElementById('game-view').style.display = 'none';
+            document.getElementById('menu-view').style.display = 'flex';
+            document.getElementById('summary-modal').classList.add('hidden');
+            setTimeout(() => { if(swiperMain) swiperMain.update(); }, 100);
+        }
+
+        function resetGameBoard() {
+            startTimer();
+            const container = document.getElementById('game-container');
+            const targetWord = currentLessonData[currentIndex].word;
+            document.querySelectorAll('.word-target').forEach(el => el.remove());
+            
+            foundCount = 0;
+            document.getElementById('score').innerText = '0';
+            
+            const existingPositions = []; 
+            for (let i = 0; i < TOTAL_TARGETS; i++) {
+                createWordElement(targetWord, container, existingPositions);
+            }
+        }
+
+        function createWordElement(text, container, existingPositions) {
+            const word = document.createElement('div');
+            word.className = 'word-target';
+            word.innerText = text;
+            
+            // 移除隨機顏色邏輯，直接使用 CSS 變數
+            word.style.color = ''; 
+            
+            const isDark = (wordColor === '#000000' || wordColor === '#000' || wordColor === 'black');
+            word.dataset.isDark = isDark;
+
+            const randomSize = 0.9 + Math.random() * 0.7;
+            word.style.fontSize = `${randomSize}rem`;
+            
+            let left, top, placed = false;
+            
+            // --- 智慧分散演算法 ---
+            // 根據字數調整所需的空間 (字越長，左右碰撞半徑越大)
+            const lengthFactor = (text.length - 2) * 2; 
+            
+            // 三階段嘗試：優先寬鬆間距 -> 標準間距 -> 緊湊間距
+            const radii = [24 + lengthFactor, 18 + lengthFactor, 14 + lengthFactor];
+            
+            for (let minR of radii) {
+                if (placed) break;
+                
+                let attempts = 0;
+                const maxAttemptsPerTier = 100;
+                const padding = 8;
+                const usableRange = 100 - 2 * padding;
+
+                while (attempts < maxAttemptsPerTier) {
+                    left = padding + Math.random() * usableRange;
+                    top = padding + Math.random() * usableRange;
+                    
+                    let collision = false;
+                    for (const pos of existingPositions) {
+                        // 計算兩點間的歐幾里得距離
+                        const dx = left - pos.x;
+                        const dy = top - pos.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        
+                        if (dist < minR) { 
+                            collision = true; 
+                            break; 
+                        }
+                    }
+                    
+                    if (!collision) {
+                        existingPositions.push({x: left, y: top});
+                        placed = true;
+                        break;
+                    }
+                    attempts++;
+                }
+            }
+            
+            // 萬一真的找不到位置 (極少發生)，隨機放置作為最後手段
+            if (!placed) {
+                 left = 5 + Math.random() * 90;
+                 top = 5 + Math.random() * 90;
+                 existingPositions.push({x: left, y: top});
+            }
+            
+            word.style.top = top + '%'; word.style.left = left + '%';
+            word.style.transform = `translate(-50%, -50%) rotate(${(Math.random()-0.5)*60}deg)`;
+
+            const handleInteract = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (word.classList.contains('found')) return;
+                word.classList.add('found');
+                word.style.transform = `translate(-50%, -50%) scale(1.5) rotate(0deg)`;
+                speakText(text);
+                foundCount++;
+                document.getElementById('score').innerText = foundCount;
+                if (foundCount === TOTAL_TARGETS) {
+                    stopTimer();
+                    setTimeout(() => {
+                        playWinSound();
+
+                        // 紀錄本關時間
+                        lessonScores[currentIndex] = secondsElapsed;
+
+                        // 計算單關回饋評語
+                        const feedbackEl = document.getElementById('win-feedback');
+                        let feedbackText = "";
+                        if (secondsElapsed <= 15) feedbackText = "太神啦！簡直是光速！ ⚡";
+                        else if (secondsElapsed <= 30) feedbackText = "太厲害了！手速超快！ 🔥";
+                        else if (secondsElapsed <= 60) feedbackText = "表現不錯喔！繼續保持！ 👍";
+                        else feedbackText = "挑戰成功！堅持就是勝利！ 💪";
+                        feedbackEl.innerText = feedbackText;
+
+                        // 判斷是否為最後一關
+                        const nextBtn = document.getElementById('next-level-btn');
+                        if (currentIndex === currentLessonData.length - 1) {
+                            nextBtn.innerText = "查看總成績 🏆";
+                            nextBtn.onclick = showSummary; // 綁定到顯示總結的函數
+                            nextBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'border-blue-700');
+                            nextBtn.classList.add('bg-purple-500', 'hover:bg-purple-600', 'border-purple-700');
+                        } else {
+                            nextBtn.innerText = "下一關 ➜";
+                            nextBtn.onclick = nextLesson;
+                            nextBtn.classList.add('bg-blue-500', 'hover:bg-blue-600', 'border-blue-700');
+                            nextBtn.classList.remove('bg-purple-500', 'hover:bg-purple-600', 'border-purple-700');
+                        }
+
+                        document.getElementById('win-lesson-name').innerText = text;
+                        document.getElementById('win-time').innerText = document.getElementById('timer-display').innerText;
+                        document.getElementById('win-modal').classList.remove('hidden');
+                    }, 800);
+                }
+            };
+            word.addEventListener('mousedown', handleInteract);
+            word.addEventListener('touchstart', handleInteract);
+            container.appendChild(word);
+        }
+
+        function showSummary() {
+            document.getElementById('win-modal').classList.add('hidden');
+            
+            // 計算總秒數
+            let totalSeconds = 0;
+            // 即使玩家跳關玩，也可以加總目前的成績
+            Object.values(lessonScores).forEach(s => totalSeconds += s);
+
+            // 格式化總時間
+            const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const s = (totalSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('summary-total-time').innerText = `${m}:${s}`;
+
+            // 計算平均每關耗時來給評語
+            const playedCount = Object.keys(lessonScores).length || 1;
+            const avgSeconds = totalSeconds / playedCount;
+            
+            let summaryFeedback = "";
+            if (avgSeconds <= 15) summaryFeedback = "神級反應！你是閃電俠嗎？⚡⚡⚡";
+            else if (avgSeconds <= 25) summaryFeedback = "超級高手！速度驚人！🔥🔥🔥";
+            else if (avgSeconds <= 40) summaryFeedback = "表現優異！非常專注喔！👍👍👍";
+            else summaryFeedback = "順利通關！毅力驚人！💪💪💪";
+            
+            document.getElementById('summary-feedback').innerText = summaryFeedback;
+
+            document.getElementById('summary-modal').classList.remove('hidden');
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval); secondsElapsed = 0;
+            updateTimer();
+            timerInterval = setInterval(() => { secondsElapsed++; updateTimer(); }, 1000);
+        }
+        function stopTimer() { clearInterval(timerInterval); }
+        function updateTimer() {
+            const m = Math.floor(secondsElapsed/60).toString().padStart(2,'0');
+            const s = (secondsElapsed%60).toString().padStart(2,'0');
+            document.getElementById('timer-display').innerText = `${m}:${s}`;
+        }
+
+        function closeModalAndReset() { document.getElementById('win-modal').classList.add('hidden'); resetGameBoard(); }
+        function nextLesson() {
+            document.getElementById('win-modal').classList.add('hidden');
+            if (currentIndex < currentLessonData.length - 1) startGame(currentIndex + 1);
+            else backToMenu();
+        }
+
+        // --- 設定相關 ---
+        const settingsModal = document.getElementById('settings-modal');
+        function loadSettings() {
+            const saved = JSON.parse(localStorage.getItem('nanI_settings_v3') || '{}');
+            voiceRate = saved.rate || 1.0;
+            selectedVoiceURI = saved.voice || '';
+            textStyle = saved.style || 'simple';
+            wordColor = saved.color || '#ffffff';
+            // 如果舊設定有 random，重置為白色
+            if (wordColor === 'random') wordColor = '#ffffff';
+            
+            wordOpacity = saved.opacity !== undefined ? saved.opacity : 1.0;
+            
+            applySettingsToCSS();
+        }
+
+        function saveSettings() {
+            voiceRate = parseFloat(document.getElementById('rate-range').value);
+            selectedVoiceURI = document.getElementById('voice-select').value;
+            wordOpacity = parseFloat(document.getElementById('opacity-range').value);
+            document.querySelectorAll('input[name="textStyle"]').forEach(el => { if(el.checked) textStyle = el.value; });
+            
+            localStorage.setItem('nanI_settings_v3', JSON.stringify({
+                rate: voiceRate, voice: selectedVoiceURI, style: textStyle, color: wordColor, opacity: wordOpacity
+            }));
+            
+            applySettingsToCSS();
+            settingsModal.classList.add('hidden');
+        }
+
+        function applySettingsToCSS() {
+            const root = document.documentElement;
+            root.style.setProperty('--word-color', wordColor);
+            root.style.setProperty('--word-opacity', wordOpacity);
+            
+            const container = document.getElementById('game-container');
+            container.classList.remove('style-simple', 'style-outline');
+            container.classList.add(`style-${textStyle}`);
+        }
+
+        function openSettings() {
+            populateVoiceList();
+            document.getElementById('rate-range').value = voiceRate;
+            document.getElementById('rate-value').innerText = voiceRate;
+            document.getElementById('opacity-range').value = wordOpacity;
+            document.getElementById('opacity-value').innerText = Math.round(wordOpacity*100) + '%';
+            if(selectedVoiceURI) document.getElementById('voice-select').value = selectedVoiceURI;
+            document.querySelectorAll(`input[name="textStyle"][value="${textStyle}"]`)[0].checked = true;
+            
+            updateColorSelectionUI();
+            settingsModal.classList.remove('hidden');
+        }
+        function closeSettings() { settingsModal.classList.add('hidden'); loadSettings(); }
+
+        function selectColor(el) {
+            wordColor = el.dataset.color;
+            updateColorSelectionUI();
+        }
+
+        function handleCustomColor(input) {
+            wordColor = input.value;
+            updateColorSelectionUI();
+        }
+
+        function updateColorSelectionUI() {
+            document.querySelectorAll('.color-option').forEach(opt => {
+                const isSelected = (opt.dataset.color === wordColor) || (opt.classList.contains('custom') && !opt.dataset.color && wordColor.startsWith('#') && !isPredefinedColor(wordColor));
+                opt.classList.toggle('selected', isSelected);
+                
+                if (isSelected) {
+                    let name = opt.title || '自訂顏色';
+                    document.getElementById('color-name-display').innerText = name;
+                    if (opt.classList.contains('custom')) {
+                        opt.style.background = wordColor;
+                    }
+                }
+            });
+        }
+        
+        function isPredefinedColor(color) {
+            return Array.from(document.querySelectorAll('.color-option:not(.custom)')).some(el => el.dataset.color && el.dataset.color.toLowerCase() === color.toLowerCase());
+        }
+
+        function previewTextStyle(style) { }
+
+        document.getElementById('rate-range').addEventListener('input', e => document.getElementById('rate-value').innerText = e.target.value);
+        document.getElementById('opacity-range').addEventListener('input', e => document.getElementById('opacity-value').innerText = Math.round(e.target.value*100) + '%');
+
+        function populateVoiceList() {
+            voices = window.speechSynthesis.getVoices().sort((a,b) => a.lang.includes('zh') ? -1 : 1);
+            const select = document.getElementById('voice-select');
+            select.innerHTML = '';
+            voices.forEach(v => {
+                const opt = document.createElement('option');
+                opt.textContent = `${v.name} (${v.lang})`;
+                opt.value = v.voiceURI;
+                select.appendChild(opt);
+            });
+            if (!selectedVoiceURI && voices.length > 0) selectedVoiceURI = voices[0].voiceURI;
+        }
+
+        function speakText(text) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = voiceRate;
+            const v = voices.find(v => v.voiceURI === selectedVoiceURI);
+            if(v) u.voice = v;
+            else u.lang = 'zh-TW';
+            window.speechSynthesis.speak(u);
+        }
+        function testVoice() { speakText("這就是測試聲音"); }
+
+        function playWinSound() {
+            initAudioContext();
+            const now = audioCtx.currentTime;
+            [523, 659, 784, 1046].forEach((f, i) => {
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc.frequency.value = f;
+                g.gain.setValueAtTime(0, now+i*0.1);
+                g.gain.linearRampToValueAtTime(0.2, now+i*0.1+0.05);
+                g.gain.exponentialRampToValueAtTime(0.01, now+i*0.1+0.5);
+                osc.connect(g); g.connect(audioCtx.destination);
+                osc.start(now+i*0.1); osc.stop(now+i*0.1+0.5);
+            });
+        }
+    </script>
+</body>
+</html>
