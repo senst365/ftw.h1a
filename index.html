@@ -1072,7 +1072,16 @@
 
         function speakText(text) {
             window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
+            
+            // 處理多音字或特定發音修正
+            let speakContent = text;
+            if (text === "你和我") {
+                speakContent = "你漢我"; // 強制修正發音：和 -> 漢 (ㄏㄢˋ)
+            } else if (text === "和") {
+                 // 如果單獨出現"和"，視情況可能也需要調整，但在這裡針對"你和我"
+            }
+
+            const u = new SpeechSynthesisUtterance(speakContent);
             u.rate = voiceRate;
             const v = voices.find(v => v.voiceURI === selectedVoiceURI);
             if(v) u.voice = v;
